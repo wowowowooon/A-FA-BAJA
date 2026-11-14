@@ -61,7 +61,7 @@ race-backend (mqtt.py 구독: race/#, race/sensor/#)
 | `course_deg` | 선택 | 진행 방향 0~360° — 지도 화살표 회전 |
 | `sats`, `hdop`, `status` | 선택 | 위성 수, 정밀도, fix 상태 |
 
-서버 처리 코드: `app/backend/mqtt.py` → `on_mqtt_message()` → `lat`/`lon` 있으면 `_ingest_gps_payload()`
+서버 처리 코드: `server/app/backend/mqtt.py` → `on_mqtt_message()` → `lat`/`lon` 있으면 `_ingest_gps_payload()`
 
 ### 방법 2 — 기존 telemetry envelope에 GPS 추가
 
@@ -201,10 +201,10 @@ sudo journalctl -u race-backend -f | grep -i mqtt
 
 ```bash
 # 서버에서 실행 예시
-python3 app/backend/tools/saemangeum_loop_gps.py --host localhost --port 1883 --interval-sec 1
+python3 server/app/backend/tools/saemangeum_loop_gps.py --host localhost --port 1883 --interval-sec 1
 ```
 
-- 파일: `app/backend/tools/saemangeum_loop_gps.py`
+- 파일: `server/app/backend/tools/saemangeum_loop_gps.py`
 - `race/gps` 페이로드 형식 참고용
 
 ---
@@ -302,11 +302,11 @@ values에 gps_lat, gps_lon 추가 (speed는 km/h):
 
 | 파일 | 역할 |
 |------|------|
-| `app/backend/mqtt.py` | MQTT 수신, GPS 파싱, WebSocket 브로드캐스트 |
-| `app/backend/config.py` | `MOSQUITTO_HOST`, `MQTT_TOPICS` |
-| `app/backend/tools/saemangeum_loop_gps.py` | GPS 시뮬레이터 |
-| `app/frontend/src/pages/LivePage.jsx` | LIVE 지도·경로·랩 |
-| `app/frontend/src/components/LapTrackView.jsx` | 분석실 랩 경로 |
+| `server/app/backend/mqtt.py` | MQTT 수신, GPS 파싱, WebSocket 브로드캐스트 |
+| `server/app/backend/config.py` | `MOSQUITTO_HOST`, `MQTT_TOPICS` |
+| `server/app/backend/tools/saemangeum_loop_gps.py` | GPS 시뮬레이터 |
+| `server/app/frontend/src/pages/LivePage.jsx` | LIVE 지도·경로·랩 |
+| `server/app/frontend/src/components/LapTrackView.jsx` | 분석실 랩 경로 |
 
 ---
 
