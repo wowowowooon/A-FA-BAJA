@@ -1,0 +1,28 @@
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+livekit/livekit.yaml
+coturn/turnserver.conf
+
+# --- Dependencies / virtualenvs ---
+node_modules/
+venv/
+.venv/
+
+# --- Build artifacts / caches ---
+__pycache__/
+*.pyc
+app/frontend/dist/
+*.bak
+
+# --- Runtime data ---
+app/backend/recording_logs/
+influx/
+mosquitto/data/
+mosquitto/log/
+
+# --- Installers / editor files ---
+*.deb
+*.code-workspace
+.vscode/
