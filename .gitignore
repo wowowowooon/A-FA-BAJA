@@ -13,14 +13,14 @@ venv/
 # --- Build artifacts / caches ---
 __pycache__/
 *.pyc
-app/frontend/dist/
+server/app/frontend/dist/
 *.bak
 
 # --- Runtime data ---
-app/backend/recording_logs/
+server/app/backend/recording_logs/
 influx/
-mosquitto/data/
-mosquitto/log/
+server/mosquitto/data/
+server/mosquitto/log/
 
 # --- Installers / editor files ---
 *.deb

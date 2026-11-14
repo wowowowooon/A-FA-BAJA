@@ -1,73 +1,123 @@
-# 🏁 Race Stack — BAJA 차량 실시간 텔레메트리 시스템
+# 🏁 A-FA BAJA: 해석 기반 서스펜션 최적화 & 차량 탑재형 실시간 계측 시스템
 
-BAJA 오프로드 차량에서 측정한 센서·GPS 데이터를 **실시간으로 수집, 저장, 시각화**하는 풀스택 텔레메트리 플랫폼입니다.
-차량에 탑재한 라즈베리파이가 MQTT로 데이터를 보내면, 서버가 이를 정규화해 시계열 DB에 저장하고 WebSocket으로 웹 대시보드에 바로 전달합니다.
-주행이 끝난 뒤에는 기록된 데이터를 랩 단위로 분석할 수 있습니다.
+> **아주대학교 자작자동차 동아리 A-FA** · 2026 KSAE 대학생 자작자동차대회 기술부문 (기술아이디어)
+>
+> 단순화 모델로 이상적인 서스펜션 세팅을 찾고, **직접 만든 실시간 계측 시스템**으로 실차에서 검증했습니다.
+> 에어쇼바 진동 해석부터 PCB 설계, 계측 박스 패키징, MCU 펌웨어, 텔레메트리 서버와 웹 대시보드까지 **해석 → 하드웨어 → 소프트웨어 → 실차 검증** 전 과정을 맡았습니다.
 
-### LIVE 대시보드
-![LIVE 대시보드](docs/images/live.png)
-
-### 분석실 — 랩 경로
-![분석실 랩 경로](docs/images/analysis-track.png)
-
-### 분석실 — 다중 센서 그래프
-![분석실 그래프](docs/images/analysis-chart.png)
+![프로젝트 포스터](docs/images/overview/poster.png)
 
 ---
 
-## ✨ 주요 기능
+## 📌 핵심 성과
 
-### 🔴 LIVE 대시보드 (`/`)
-- **실시간 HUD**: 속도·RPM·기어 게이지, IMU 자세(Pitch/Roll/Yaw)와 가속도(G), 좌우 G-Force, 서스펜션 리니어 센서 4륜 변위
-- **실시간 지도**: Leaflet 지도(다크/위성 전환) 위에 차량 위치, 진행 방향, 속도 표시
-- **자동 랩 추적**: GPS 궤적이 시작점으로 돌아오면 랩을 자동으로 판정하고, 랩별 경로를 색상으로 구분해 표시. 수동 랩 완료 기능도 지원
-- **랩 타이머 & 기록 제어**: 주행 기록 시작·종료, 기록 이름 지정
-- **접근 제어**: 비밀번호 잠금 화면
+| 지표 | 기존 (R2) | 최종 (T4) | 개선 |
+|---|---|---|---|
+| 전체 피치 변동폭 | 10.70° | **5.50°** | **▼ 48.6%** |
+| 최대 전방 피치각 | 6.27° | **4.30°** | **▼ 31.4%** |
+| 최대 후방 피치각 | 4.43° | **1.20°** | **▼ 72.9%** |
 
-### 📊 분석실 (`/analysis`)
-- 저장된 주행 기록을 선택해 **여러 센서 항목을 한 차트에 겹쳐 비교** (다중 Y축, 드래그 확대·이동)
-- **랩 트랙 뷰**: 랩별 주행 경로·랩타임·거리를 지도에서 확인하고, 두 지점을 찍어 구간 거리와 속도 측정
-- GPS 노이즈로 생기는 비정상 속도값을 걸러내고, 빈 구간은 보간해 속도 프로파일 복원
-- 기록 삭제·관리
+- 시뮬레이션 1차 최적 후보(C1)에서 최대 전방 피치각을 기준 대비 **56.9%** 줄였습니다.
+- 최종 T4 세팅에서는 점프 착지 때 전·후륜이 거의 동시에 닿는 **수평 착지**를 확인했습니다.
+- 계측 시스템이 차량 속도, 피치각, 서스펜션 변위, 수직 가속도를 실시간으로 수집·전송·저장·시각화합니다.
 
-### ⚙️ 백엔드
-- MQTT 토픽(`race/#`, `race/gps` 등) 구독 후 **센서 데이터 정규화** (단위, 위치, 타입 메타데이터 매핑)
-- 시퀀스 번호·타임스탬프 기반으로 **순서가 뒤바뀐 패킷과 중복 패킷 제거**
-- **InfluxDB 비동기 저장**: 저장 경로와 실시간 전송 경로를 분리해 DB가 느려져도 실시간 화면이 밀리지 않도록 설계
-- **WebSocket 브로드캐스트**: 큐 크기 제한, 전송 타임아웃, 좀비 연결 정리로 장시간 운영에도 안정적으로 동작
-- 스트리밍 방식의 주행 기록 저장(JSONL + InfluxDB)과 분석용 쿼리 API
+<p align="center">
+  <img src="docs/images/suspension/t4-real-jump.jpg" width="620" alt="T4 세팅 점프 착지">
+</p>
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## 🧭 전체 흐름
 
 ```
- ┌─────────────── 차량 ───────────────┐
- │  센서 / CAN / GPS                   │
- │        │                            │
- │  Raspberry Pi ── MQTT publish ──────┼──┐
- └─────────────────────────────────────┘  │
-                                          ▼
- ┌──────────────────────── 서버 (AWS EC2) ────────────────────────┐
- │                                                                │
- │   Mosquitto (MQTT Broker)                                      │
- │        │ subscribe race/#                                      │
- │        ▼                                                       │
- │   FastAPI 백엔드 ── 정규화 · 중복/역순 제거                      │
- │     │                          │                               │
- │     │ 비동기 큐                 │ 브로드캐스트 큐                 │
- │     ▼                          ▼                               │
- │   InfluxDB (시계열 DB)       WebSocket  ───────────────┐        │
- │     ▲                                                 │        │
- │     └──── REST API (기록·분석 조회) ◄──────────┐        │        │
- │                                               │        │        │
- └───────────────────────────────────────────────┼────────┼────────┘
-                                                 │        ▼
-                                        ┌────────┴──────────────┐
-                                        │ React 웹 대시보드      │
-                                        │ LIVE HUD · 지도 · 분석 │
-                                        └───────────────────────┘
+ ① 해석                     ② 하드웨어 & MCU               ③ 서버                      ④ 검증
+ 에어쇼바 힘-변위 실측        센서 선정 · 회로 설계           MQTT 수집 · 정규화           실차 점프 시험
+ 등가 강성식 도출       →     KiCad PCB 제작          →     InfluxDB 저장          →     세팅별 피치 비교
+ Altair 점프 시뮬레이션       방진·방수 패키징                WebSocket 실시간 HUD         최종 세팅(T4) 확정
+ 후보 세팅 선정              RPi · ESP32 · Teensy 펌웨어     분석실 그래프 비교
 ```
+
+---
+
+## 🗂️ 레포 구성
+
+이 레포는 **서버**와 **하드웨어 & MCU** 두 갈래로 나뉩니다.
+
+| 디렉터리 | 내용 | 문서 |
+|---|---|---|
+| [`server/`](server/) | FastAPI 백엔드, React 대시보드, Mosquitto, 배포 설정 | [server/README.md](server/README.md) |
+| [`hardware/`](hardware/) | 라즈베리파이(메인 MCU), 센서별 코드, PCB | [hardware/README.md](hardware/README.md) |
+| [`docs/`](docs/) | 서스펜션 해석 문서, 이미지 | [docs/suspension-analysis.md](docs/suspension-analysis.md) |
+
+```
+A-FA-BAJA/
+├── server/                  # 실시간 텔레메트리 서버 & 웹 대시보드
+│   ├── app/backend/         #   FastAPI · MQTT 수집 · InfluxDB · WebSocket
+│   ├── app/frontend/        #   React LIVE 대시보드 · 분석실
+│   ├── mosquitto/           #   MQTT 브로커 설정
+│   └── deploy/              #   systemd 서비스
+├── hardware/                # 차량 탑재형 계측 하드웨어 & MCU
+│   ├── raspberry-pi/        #   메인 MCU (센서 통합 · MQTT 송신)
+│   ├── sensors/             #   센서별 펌웨어 (ESP32 · IMU · GPS · CAN ...)
+│   └── pcb/                 #   KiCad 설계 파일
+└── docs/                    # 서스펜션 해석 문서 & 이미지
+```
+
+---
+
+## 🙋 담당 역할
+
+| 분야 | 한 일 |
+|---|---|
+| **🛞 서스펜션 해석** | 에어쇼바 힘-변위 실험, 구간별 등가 스프링 상수식 도출, 2단 병렬 스프링 쇼바 모델링, Altair Inspire 점프 착지 동역학 해석 (EVOL 압력 9조건 + 미세 조정) |
+| **🔌 회로 & PCB** | 센서·MCU 통합 회로 설계, ADC 분압·I2C 풀업 설계, KiCad PCB 아트웍 및 제작 |
+| **📦 패키징** | 방수 케이스 기반 계측 박스 구성, 방진 고정·배선 정리, 4륜 리니어 센서 차량 장착 |
+| **🧠 MCU / 임베디드** | 라즈베리파이 센서 통합·MQTT 송신, ESP32 ADC 수집·I2C 전달, Teensy CAN 통신 |
+| **🖥️ 서버 & 웹** | AWS EC2 인프라, FastAPI 수집 파이프라인, InfluxDB 비동기 저장, WebSocket 실시간 HUD, 분석실 |
+| **🏁 실차 검증** | 후보 세팅(R2·C1·T4) 실차 점프 시험, 계측 데이터 기반 피치 거동 비교, 최종 세팅 확정 |
+
+---
+
+## 1️⃣ 서스펜션 해석: 에어쇼바 등가 강성 & 점프 착지 최적화
+
+| 압력별 힘-변위 실측 | 2단 스프링 쇼바 모델 | 세팅별 피치각 비교 |
+|---|---|---|
+| ![힘-변위](docs/images/suspension/force-displacement.jpg) | ![쇼바 모델](docs/images/suspension/dual-spring-shock-model.jpg) | ![피치각](docs/images/suspension/pitch-overlay.png) |
+
+- 에어쇼바의 MAIN/EVOL 챔버 압력을 따로 바꿔가며 힘-변위를 측정하고, **2.5 in 기준으로 구간을 나눈 등가 강성식**을 만들었습니다.
+
+  $$K_{eq} = \big[1-H(x-2.5)\big]\,(16075.47 + 192.42P_{MAIN}) + H(x-2.5)(28785.01 + 392.64P_{MAIN} + 476.55P_{EVOL})\ [\mathrm{N/m}]$$
+
+- 실차 무게배분(44.95 : 55.11)과 질량(266 kg)을 반영한 단순화 모델로 60 km/h 범프 점프를 시뮬레이션했습니다.
+- **"앞쪽만 단단하게"는 오히려 피치를 키우고, 후륜 강성비를 높여야 착지가 안정된다**는 인사이트를 얻어 최종 **T4 (전 EVOL 175 psi / 후 EVOL 220 psi)** 를 도출했습니다.
+
+👉 **자세히 보기: [docs/suspension-analysis.md](docs/suspension-analysis.md)**
+
+---
+
+## 2️⃣ 하드웨어 & MCU: 차량 탑재형 계측 시스템
+
+| 회로도 | PCB | 계측 박스 |
+|---|---|---|
+| ![회로도](docs/images/hardware/schematic.png) | ![PCB](docs/images/hardware/pcb-layout.png) | ![계측 박스](docs/images/hardware/enclosure.jpg) |
+
+- **Raspberry Pi 4**(메인)가 GPS(USB), IMU(UART), 가속도(I2C), **ESP32**(4륜 리니어 센서 ADC → I2C), **Teensy 4.1**(ECU CAN) 데이터를 통합해 MQTT로 송신합니다.
+- 진동이 심한 오프로드 환경에서 접촉 불량을 없애려고 **센서·전원·통신 배선을 하나로 통합한 PCB**를 KiCad로 설계·제작했습니다.
+- 5 V 리니어 센서 출력은 2k/3k 분압으로 ESP32 ADC 범위에 맞추고, I2C 버스에는 2.7 kΩ 풀업을 달았습니다.
+
+👉 **자세히 보기: [hardware/README.md](hardware/README.md)**
+
+---
+
+## 3️⃣ 서버: 실시간 텔레메트리 & 분석 대시보드
+
+![LIVE 대시보드](docs/images/server/live.png)
+
+- **MQTT → FastAPI → InfluxDB / WebSocket** 파이프라인으로 차량 데이터를 실시간 수집·저장·시각화합니다.
+- 저장 경로와 실시간 전송 경로를 분리해 DB가 지연돼도 HUD가 멈추지 않게 하고, 순번·타임스탬프로 중복·역순 패킷을 제거합니다.
+- 분석실에서 세팅별 주행 기록을 같은 시간축에 겹쳐 비교하며, 이 기능으로 R2·C1·T4의 실차 피치 거동을 비교했습니다.
+
+👉 **자세히 보기: [server/README.md](server/README.md)**
 
 ---
 
@@ -75,130 +125,19 @@ BAJA 오프로드 차량에서 측정한 센서·GPS 데이터를 **실시간으
 
 | 영역 | 기술 |
 |---|---|
-| **Frontend** | React 18, Vite, Tailwind CSS, React Router, Leaflet, Recharts |
-| **Backend** | Python, FastAPI, Uvicorn, Pydantic, paho-mqtt, asyncio |
-| **Data** | InfluxDB 2 (시계열 DB), JSONL 기록 로그 |
-| **Messaging** | Mosquitto (MQTT), WebSocket |
+| **해석** | Altair Inspire (Motion), Python (Matplotlib), Excel |
+| **회로 / PCB** | KiCad 9 |
+| **임베디드** | Raspberry Pi 4, ESP32, Teensy 4.1, I2C · UART · CAN · USB |
+| **Backend** | Python, FastAPI, paho-mqtt, asyncio, InfluxDB 2, Mosquitto |
+| **Frontend** | React 18, Vite, Tailwind CSS, Leaflet, Recharts |
 | **Infra** | AWS EC2 (Ubuntu), systemd |
-| **Edge** | Raspberry Pi (센서·GPS 수집 및 MQTT 송신) |
 
 ---
 
-## 📁 프로젝트 구조
+## 🚗 차량 제원 (A-FA 125)
 
-```
-race-stack/
-├── app/
-│   ├── backend/                 # FastAPI 서버
-│   │   ├── app.py               # 앱 진입점, REST/WS 라우트
-│   │   ├── mqtt.py              # MQTT 구독, 센서 데이터 정규화
-│   │   ├── telemetry.py         # 텔레메트리 공통 데이터 모델
-│   │   ├── influx.py            # InfluxDB 비동기 쓰기 큐
-│   │   ├── ws.py                # WebSocket 연결 관리, 브로드캐스트
-│   │   ├── recordings.py        # 주행 기록 저장, 분석 쿼리, 랩 트랙
-│   │   ├── api_models.py        # 요청/응답 스키마 (Pydantic)
-│   │   ├── config.py            # 환경 설정
-│   │   └── tools/               # 테스트용 가상 센서·GPS 퍼블리셔
-│   └── frontend/                # React 대시보드
-│       └── src/
-│           ├── pages/           # LivePage, AnalysisPage
-│           ├── components/      # SpeedGauge, AccelWidget, LapTrackView ...
-│           ├── hooks/           # useWebSocket, useMap, useLapTracking
-│           └── utils/           # 랩 판정, 속도 보정, 지도 테마
-├── mosquitto/config/            # MQTT 브로커 설정
-├── *.service                    # systemd 서비스 정의
-└── README-RASPBERRY-GPS.md      # 라즈베리파이 송신 가이드
-```
-
----
-
-## 🔌 데이터 형식 (MQTT)
-
-GPS 전용 토픽 예시: `race/gps`
-
-```json
-{
-  "lat": 35.96962,
-  "lon": 126.56772,
-  "speed_kmh": 42.5,
-  "course_deg": 180.0,
-  "sats": 9,
-  "hdop": 1.0
-}
-```
-
-센서 데이터는 `race/sensor/<name>` 토픽으로 수신합니다. 자세한 형식은 [`README-RASPBERRY-GPS.md`](README-RASPBERRY-GPS.md)에 정리되어 있습니다.
-
----
-
-## 🚀 실행 방법
-
-### 1. 사전 준비
-- Python 3.10+, Node.js 18+
-- Mosquitto, InfluxDB 2
-
-### 2. 설정 파일
-```bash
-cp app/backend/.env.example      app/backend/.env       # InfluxDB 토큰/조직/버킷
-cp app/frontend/.env.example     app/frontend/.env      # API·WS 주소
-```
-
-### 3. 백엔드
-```bash
-cd app/backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-### 4. 프론트엔드
-```bash
-cd app/frontend
-npm install
-npm run dev        # http://localhost:5173
-```
-
-### 5. 하드웨어 없이 테스트
-```bash
-# 가상 GPS: 약 450m 폐루프를 10km/h로 주행
-python app/backend/tools/saemangeum_loop_gps.py
-# 가상 센서 데이터
-python app/backend/tools/random_sensor_publisher.py
-```
-
----
-
-## 📡 주요 API
-
-| Method | Endpoint | 설명 |
-|---|---|---|
-| `GET` | `/health` | InfluxDB·MQTT 연결 및 내부 큐 상태 |
-| `WS` | `/ws` | 실시간 텔레메트리 스트림 |
-| `POST` | `/api/recordings/stream/start` · `append` · `stop` | 스트리밍 주행 기록 |
-| `GET` | `/api/recordings` | 기록 목록 |
-| `GET` | `/api/analysis/fields` | 기록별 분석 가능 항목 |
-| `POST` | `/api/analysis/query` | 분석용 시계열 조회 |
-| `GET` / `PUT` | `/api/analysis/track`, `/api/recordings/{id}/track` | 랩 트랙 조회·저장 |
-| `GET` | `/api/sensors/latest` | 센서별 최신값 |
-
-FastAPI 자동 문서: `http://<서버>:8000/docs`
-
----
-
-## 🧩 기술적 고민과 해결
-
-- **실시간성과 저장 안정성 분리**: 처음에는 DB 쓰기와 WebSocket 전송이 같은 경로에 있어서 InfluxDB가 지연되면 화면도 함께 멈췄습니다. 저장 큐와 브로드캐스트 큐를 분리하고 큐 크기를 제한해 한쪽 지연이 다른 쪽에 번지지 않게 했습니다.
-- **좀비 WebSocket 연결**: 클라이언트가 비정상적으로 끊기면 send 호출이 바로 실패하지 않고 대기하면서 전체 브로드캐스트가 멈추는 문제가 있었습니다. 전송 타임아웃을 두고 응답 없는 연결을 정리하도록 바꿨습니다.
-- **GPS 노이즈 보정**: GPS가 튀면 순간 속도가 비현실적으로 크게 계산됩니다. 랩 평균 속도를 기준으로 이상값을 걸러내고 빈 구간은 보간해 속도 프로파일을 복원했습니다.
-- **기능 범위 조정**: 초기에는 LiveKit(WebRTC)과 coturn으로 차량 카메라 영상을 실시간 송출하는 기능까지 구현했습니다. 이후 카메라가 고장 나 영상 기능을 제거하고, 메모리 2GB인 서버 자원을 텔레메트리 수집과 시각화에 집중하도록 구조를 정리했습니다.
-
----
-
-## 👤 개발
-
-**1인 개발** — 기획부터 인프라 구축, 백엔드, 프론트엔드까지 전 과정을 혼자 진행했습니다.
-
-- 서버 인프라 구축 및 운영 (AWS EC2, Mosquitto, InfluxDB, systemd)
-- FastAPI 백엔드 설계·구현 (MQTT 수집 파이프라인, 비동기 저장, WebSocket)
-- React 실시간 대시보드 및 분석 페이지 개발
-- 라즈베리파이 연동 데이터 프로토콜 설계
+| 항목 | 값 |
+|---|---|
+| 크기 | 2147 × 1530 × 1391 mm (L × W × H) |
+| 무게 | 220 kg |
+| 서스펜션 | 에어쇼바 (MAIN / EVOL 2챔버) |
